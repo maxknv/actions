@@ -1,0 +1,48 @@
+#!/usr/bin/bash_
+
+target_user=test
+target_ip=54.90.108.176
+key=/home/max/.ssh/maxkey.pem
+
+# non-modified shell
+shell=/usr/bin/bash_
+
+echo "Command: $@" >> /tmp/runner.log
+
+if [ $# -ge 2 ] && [[ ${!#} == *.sh ]]; then
+        # runner input:
+        # Command: /usr/bin/bash /home/max/work/actions-runner/run-helper.sh                                  - should not pass
+        # Command: -e /home/max/work/actions-runner/_work/_temp/b1e6d32f-8ac2-45a7-abaa-b436f8df4701.sh       - should pass
+        # Command: --noprofile --norc -e -o pipefail /home/max/work/actions-runner/_work/_temp/0bf2ff82-a9f3-4e6e-85ac-447c73c8ed2b.sh - should pass
+
+        # prepare env vars for target machine
+        github_output=$GITHUB_OUTPUT
+        if [ -n "$github_output" ]; then
+            github_output_target=/tmp/github_output_$(basename $github_output)
+        fi
+        env | grep -E "(GITHUB|RUNNER)" | sed "s:GITHUB_OUTPUT.*:GITHUB_OUTPUT=$github_output_target:" | sed 's/^\([^=]*=\)\(.*\)$/\1"\2"/' > env.tmp
+        
+        # prepare job script vars
+        script_source=${!#}
+        echo SCRIPT $script_source
+        script_dest=/tmp/$(basename "${!#}")
+
+        echo "Copy script and envs file"
+        scp -i $key env.tmp $target_user@$target_ip:/tmp/env.tmp
+        # add env sourcing to job script
+        sed -i '1i source /tmp/env.tmp' $script_source
+        scp -i $key "$script_source" $target_user@$target_ip:$script_dest 
+
+        echo "Execute script"
+        ssh -i $key $target_user@$target_ip "$shell ${@:1:$#-1} $script_dest"
+
+        # copy back GITHUB_OUTPUT file if present
+        if [ -n "$github_output" ]; then
+            scp -i $key $target_user@$target_ip:$github_output_target $github_output |:
+        fi
+
+        echo "Command proxy: $@" >> /tmp/runner.log
+else
+    /usr/bin/bash_ "$@"
+fi
+

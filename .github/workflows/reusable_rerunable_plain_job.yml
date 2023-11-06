@@ -1,0 +1,53 @@
+name: Rerunable Plain Test Job
+'on':
+  workflow_call:
+    inputs:
+      job_name:
+        description: job name as in job config
+        required: true
+        type: string
+      run_config:
+        description: ci data
+        type: string
+        required: true
+    secrets:
+      secret_envs:
+        description: if given, it's passed to the environments
+        required: false
+
+
+env:
+  # Force the stdout and stderr streams to be unbuffered
+  PYTHONUNBUFFERED: 1
+
+jobs:
+  PLAIN_JOB_ATTEMPT_1:
+    uses: ./.github/workflows/reusable_plain_job.yml
+    # name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+    with:
+      job_name: ${{ inputs.job_name }}
+      run_config: ${{ inputs.run_config }}
+  PLAIN_JOB_ATTEMPT_2:
+    needs: [PLAIN_JOB_ATTEMPT_1]
+    if: ${{ !cancelled() && needs.PLAIN_JOB_ATTEMPT_1.result == 'failure' }}
+    uses: ./.github/workflows/reusable_plain_job.yml
+    # name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+    with:
+      job_name: ${{ inputs.job_name }}
+      run_config: ${{ inputs.run_config }}
+  PLAIN_JOB_ATTEMPT_3:
+    needs: [PLAIN_JOB_ATTEMPT_2]
+    if: ${{ !cancelled() && needs.PLAIN_JOB_ATTEMPT_2.result == 'failure' }}
+    uses: ./.github/workflows/reusable_plain_job.yml
+    # name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+    with:
+      job_name: ${{ inputs.job_name }}
+      run_config: ${{ inputs.run_config }}
+  PLAIN_JOB_ATTEMPT_4:
+    needs: [PLAIN_JOB_ATTEMPT_3]
+    if: ${{ !cancelled() && needs.PLAIN_JOB_ATTEMPT_3.result == 'failure' }}
+    uses: ./.github/workflows/reusable_plain_job.yml
+    # name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+    with:
+      job_name: ${{ inputs.job_name }}
+      run_config: ${{ inputs.run_config }}

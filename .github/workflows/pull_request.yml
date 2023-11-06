@@ -1,0 +1,120 @@
+name: Generic WF
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+
+on: [push]
+
+env:
+  MY_VARIABLE: "initial_value"
+
+jobs:
+  RunConfig:
+    runs-on: ubuntu-latest
+    outputs:
+      run_config: ${{ steps.GenerateRunConfig.outputs.RUN_CONFIG }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: GenerateRunConfig
+        id: GenerateRunConfig
+        run: |
+          echo "::group::configure CI run"
+          python3 ./ci/ci.py --configure --outfile ${{ runner.temp }}/run_config.json
+          echo "::endgroup::"
+
+          echo "::group::CI run configure results"
+          python3 -m json.tool ${{ runner.temp }}/run_config.json
+          echo "::endgroup::"
+
+          {
+            echo 'RUN_CONFIG<<EOF'
+            cat  ${{ runner.temp }}/run_config.json
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+  STAGE_0_0:
+    if: ${{ !failure() && !cancelled()}}
+    needs: [RunConfig]
+    uses: ./.github/workflows/reusable_rerunable_plain_job.yml
+    name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+    with:
+      job_name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_0 }}
+      run_config: ${{ needs.RunConfig.outputs.run_config }}
+
+  STAGE_0_1:
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: [self-hosted, test]
+    needs: [RunConfig]
+    # uses: ./.github/workflows/reusable_plain_job.yml
+    name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_1 }}
+    steps:
+      - run: echo ${{ github.job }}
+    # with:
+    #   job_name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_1 }}
+    #   run_config: ${{ needs.RunConfig.outputs.run_config }}
+
+  # STAGE_0_2:
+  #   if: ${{ !failure() && !cancelled()}}
+  #   needs: [RunConfig]
+  #   uses: ./.github/workflows/reusable_rerunable_plain_job.yml
+  #   name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_2 }}
+  #   with:
+  #     job_name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_2 }}
+  #     run_config: ${{ needs.RunConfig.outputs.run_config }}
+          
+  # STAGE_0_3:
+  #   if: ${{ !failure() && !cancelled()}}
+  #   needs: [RunConfig]
+  #   uses: ./.github/workflows/reusable_rerunable_plain_job.yml
+  #   name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_3 }}
+  #   with:
+  #     job_name: ${{ fromJson(needs.RunConfig.outputs.run_config).stages_config.STAGE_0_3 }}
+  #     run_config: ${{ needs.RunConfig.outputs.run_config }}
+
+  # test3:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Step 1
+  #       run: |
+  #         echo ${{ github.job }}
+  #         sleep 1
+  #         exit 1
+
+
+  # job1:
+  #   runs-on: [self-hosted, test]
+  #   name: ${{ fromJson(needs.test1.outputs.data).name }}
+  #   needs: [test1]
+  #   steps:
+  #     - name: Lala
+  #       env:
+  #         MYENV: foo2
+  #         MYENV2: foo3
+  #       run: |
+  #         echo "Hello"
+  #     - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+  #     - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+  #     - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+  #     - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+  #     - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+  #     - name: List files in the repository
+  #       run: |
+  #         ls ${{ github.workspace }}
+  #     - run: echo "🍏 This job's status is ${{ job.status }}."
+  # # job1:
+  # #   runs-on: ubuntu-latest
+  # #   steps:
+  # #     - name: Show Initial Value
+  # #       run: echo "Initial value is $MY_VARIABLE"
+
+  # #     - name: Change Value
+  # #       run: |
+  # #         echo "MY_VARIABLE=new_value" > $GITHUB_ENV
+  # #     - run: ${{ env.MY_VARIABLE }}="123"
+  # # job2:
+  # #   runs-on: ubuntu-latest
+  # #   needs: [job1]
+  # #   steps:
+  # #     - name: Show Changed Value
+  # #       run: echo "Changed value is $MY_VARIABLE"
