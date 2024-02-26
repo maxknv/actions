@@ -1,0 +1,45 @@
+name: Plain Test Job
+'on':
+  workflow_call:
+    inputs:
+      job_name:
+        description: job name as in job config
+        required: true
+        type: string
+      run_config:
+        description: ci data
+        type: string
+        required: true
+    secrets:
+      secret_envs:
+        description: if given, it's passed to the environments
+        required: false
+
+
+env:
+  # Force the stdout and stderr streams to be unbuffered
+  PYTHONUNBUFFERED: 1
+
+jobs:
+  PLAIN_JOB:
+    if: contains(fromJson(inputs.run_config).jobs_to_do, inputs.job_name)
+    runs-on: ${{ fromJson(inputs.run_config).jobs_config[inputs.job_name].runner_type }}
+    name: ${{ matrix.parametrized != 'null' && matrix.parametrized || inputs.job_name }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false  # we wait for entire matrix
+      matrix:
+        parametrized: ${{ fromJson(inputs.run_config).jobs_config[inputs.job_name].parametrized }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2 
+        with:
+          # ref: ${{ fromJson(inputs.run_config).git_ref }}
+          # submodules: ${{inputs.submodules}}
+          fetch-depth: 1
+      - name: Run
+        shell: bash
+        run: |
+          echo ${{ github.job }}
+          env
+          python3 ./ci/ci.py --run --job-name '${{inputs.job_name}}' --parametrized ${{ toJson(matrix.parametrized) }}
